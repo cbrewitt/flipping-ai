@@ -14,11 +14,12 @@ def runeLiteVersion = 'latest.release'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
-
+	compileOnly group: 'org.json', name: 'json', version: '20230227'
 	compileOnly 'org.projectlombok:lombok:1.18.20'
 	annotationProcessor 'org.projectlombok:lombok:1.18.20'
 
-	testImplementation 'junit:junit:4.12'
+	testImplementation 'junit:junit:4.13.1'
+	implementation 'com.google.inject:guice:4.2.3'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
 	testImplementation group: 'net.runelite', name:'jshell', version: runeLiteVersion
 }
