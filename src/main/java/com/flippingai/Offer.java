@@ -1,6 +1,6 @@
 package com.flippingai;
 
-import org.json.JSONObject;
+import com.google.gson.JsonObject;
 
 public class Offer {
     String status = "empty";
@@ -13,16 +13,17 @@ public class Offer {
     int boxId = 0;
     boolean active = false;
 
-    public JSONObject toJson() {
-        return new JSONObject()
-                .put("status", status)
-                .put("item_id", itemId)
-                .put("price", price)
-                .put("amount_total", amountTotal)
-                .put("amount_spent", amountSpent)
-                .put("amount_traded", amountTraded)
-                .put("box_id", boxId)
-                .put("active", active);
+    public JsonObject toJson() {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("status", status);
+        jsonObject.addProperty("item_id", itemId);
+        jsonObject.addProperty("price", price);
+        jsonObject.addProperty("amount_total", amountTotal);
+        jsonObject.addProperty("amount_spent", amountSpent);
+        jsonObject.addProperty("amount_traded", amountTraded);
+        jsonObject.addProperty("box_id", boxId);
+        jsonObject.addProperty("active", active);
+        return jsonObject;
     }
 
     public boolean equals(Object o) {
