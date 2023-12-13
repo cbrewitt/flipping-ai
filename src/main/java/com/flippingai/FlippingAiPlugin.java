@@ -8,15 +8,20 @@ import net.runelite.api.events.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
+import org.pushingpixels.substance.api.skin.SubstanceGeminiLookAndFeel;
 
 import javax.inject.Inject;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -46,12 +51,33 @@ public class FlippingAiPlugin extends Plugin
 	private boolean geOpen = false;
 
 
+	private SuggestionPanel suggestionPanel;
+	private NavigationButton navButton;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
 	@Override
 	protected void startUp() throws Exception
 	{
 		log.info("Flipping AI started!");
 		tradeController = new TradeController("http://142.4.217.224:5000/trader", 2);
-		scheduledTask = executorService.scheduleAtFixedRate(this::getCommand, 0, 4, TimeUnit.SECONDS);
+		scheduledTask = executorService.scheduleAtFixedRate(this::getSuggestion, 0, 10, TimeUnit.SECONDS);
+
+		suggestionPanel = injector.getInstance(SuggestionPanel.class);
+		suggestionPanel.init(config);
+
+		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "coflip-transparent-small.png");
+
+		navButton = NavigationButton.builder()
+				.tooltip("Flipping AI")
+				.icon(icon)
+				.priority(3)
+				.panel(suggestionPanel)
+				.build();
+
+		clientToolbar.addNavigation(navButton);
+
 	}
 
 	@Override
@@ -93,49 +119,6 @@ public class FlippingAiPlugin extends Plugin
 	}
 
 
-	void printSlots() {
-		GrandExchangeOffer[] offers = this.client.getGrandExchangeOffers();
-		for (int i = 0; i < 8; i++) {
-			GrandExchangeOffer offer = offers[i];
-			if( offer != null) {
-				log.info("----------------------");
-				log.info("slot: " + i);
-				log.info("status:" + offer.getState());
-				log.info("item id: " + offer.getItemId());
-				log.info("price: " + offer.getPrice());
-				log.info("Quantity sold: " + offer.getQuantitySold());
-				log.info("total quantity: " + offer.getTotalQuantity());
-				log.info("amount spent: " + offer.getSpent());
-			}
-			else {
-				log.info("offer is null");
-			}
-		}
-	}
-
-	void printInventory() {
-		// Log inventory items
-		ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
-		if (inventory != null) {
-			Item[] items = inventory.getItems();
-			for (Item item : items) {
-				int itemId = item.getId();
-				log.info("Inventory item ID: " + itemId);
-				ItemComposition itemComposition = client.getItemDefinition(itemId);
-
-				// If the item is noted
-				if (itemComposition.getNote() != -1) {
-					itemId = itemComposition.getLinkedNoteId();
-					log.info("Unnoted item ID: " + itemId);
-				}
-
-				log.info("----------------------------");
-				log.info("Inventory item ID: " + itemId);
-				log.info("Quantity: " + item.getQuantity());
-			}
-		}
-	}
-
 	private Widget getGeWidget() {
 		return this.client.getWidget(WidgetInfo.GRAND_EXCHANGE_WINDOW_CONTAINER);
 	}
@@ -145,16 +128,37 @@ public class FlippingAiPlugin extends Plugin
 		return geWidget != null && !geWidget.isHidden();
 	}
 
-	void getCommand() {
+	void getSuggestion() {
 		if (offers != null && inventoryItems != null) {
-			log.info("Getting command");
+			log.info("Getting suggestion");
 			try {
-				JsonObject command = tradeController.getCommand(offers, inventoryItems, false, false);
-				log.info("Received command: " + command.toString());
+				JsonObject suggestionJson = tradeController.getSuggestion(offers, inventoryItems, false, false);
+				log.info("Received suggestion: " + suggestionJson.toString());
+				Suggestion suggestion = Suggestion.fromJson(suggestionJson);
+				suggestionPanel.setText(suggestion.toString());
 			} catch (IOException e) {
-				log.error("Error occurred while getting command: " + e);
+				log.error("Error occurred while getting suggestion: " + e);
 			}
 		}
+	}
+
+	private static String extractOfferState(GrandExchangeOfferState state) {
+		String status;
+		switch (state) {
+			case SELLING:
+            case CANCELLED_SELL:
+            case SOLD:
+                status = "sell";
+				break;
+            case BUYING:
+            case CANCELLED_BUY:
+            case BOUGHT:
+                status = "buy";
+				break;
+            default:
+				status = "empty";
+		}
+		return status;
 	}
 
 	void updateOffers() {
@@ -165,8 +169,7 @@ public class FlippingAiPlugin extends Plugin
 			if (runeliteOffer != null) {
 
 				Offer offer = new Offer();
-				// Assigning values from GrandExchangeOffer to our custom Offer class
-				offer.status = runeliteOffer.getState().name();
+				offer.status = extractOfferState(runeliteOffer.getState());
 				offer.itemId = runeliteOffer.getItemId();
 				offer.price = runeliteOffer.getPrice();
 				offer.amountTotal = runeliteOffer.getTotalQuantity();
@@ -174,7 +177,7 @@ public class FlippingAiPlugin extends Plugin
 				offer.amountTraded = runeliteOffer.getQuantitySold();
 				offer.boxId = i;
 				offer.active = runeliteOffer.getState().equals(GrandExchangeOfferState.BUYING)
-						|| runeliteOffer.getState().equals(GrandExchangeOfferState.SELLING); // Assuming 'active' is true if status is not 'empty'
+						|| runeliteOffer.getState().equals(GrandExchangeOfferState.SELLING);
 
 				offers[i] = offer;
 			}
@@ -186,19 +189,20 @@ public class FlippingAiPlugin extends Plugin
 		ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
 		if (inventory != null) {
 			Item[] items = inventory.getItems();
-			RSItem[] unnotedItems = new RSItem[items.length];
-			for  (int i = 0; i < items.length; i++) {
-				Item item = items[i];
-				int itemId = item.getId();
-				ItemComposition itemComposition = client.getItemDefinition(itemId);
+			List<RSItem> unnotedItems = new ArrayList<>();
+            for (Item item : items) {
+                int itemId = item.getId();
+                if (itemId == -1) continue;
 
-				// If the item is noted
-				if (itemComposition.getNote() != -1) {
-					itemId = itemComposition.getLinkedNoteId();
-				}
-				unnotedItems[i] = new RSItem(itemId, item.getQuantity());
-			}
-			inventoryItems = unnotedItems;
+                ItemComposition itemComposition = client.getItemDefinition(itemId);
+
+                // If the item is noted
+                if (itemComposition.getNote() != -1) {
+                    itemId = itemComposition.getLinkedNoteId();
+                }
+                unnotedItems.add(new RSItem(itemId, item.getQuantity()));
+            }
+			inventoryItems = unnotedItems.toArray(new RSItem[0]);
 		}
 	}
 }

@@ -68,9 +68,10 @@ public class TradeController {
         return statusJson;
     }
 
-    public JsonObject getCommand(Offer[] offers, RSItem[] items, boolean previousSuccessful, boolean sendPreviousSuccessful) throws IOException {
+    public JsonObject getSuggestion(Offer[] offers, RSItem[] items, boolean previousSuccessful, boolean sendPreviousSuccessful) throws IOException {
         JsonObject status = statusJson(offers, items, previousSuccessful, sendPreviousSuccessful);
-        return postJson(status, "/command", true);
+        JsonObject command = postJson(status, "/command", true);
+        return command;
     }
 
     private JsonObject postJson(JsonElement json, String route, boolean jsonResponse) throws IOException {
