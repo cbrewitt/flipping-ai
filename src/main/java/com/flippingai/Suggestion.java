@@ -1,17 +1,21 @@
 package com.flippingai;
 
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import lombok.Getter;
 
+@Getter
 public class Suggestion {
-    private String type;
-    private int boxId;
-    private int itemId;
-    private int price;
-    private int quantity;
-    private String name;
-    private int waitTime;
-    private int id;
+    private final String type;
+    private final int boxId;
+    private final int itemId;
+    private final int price;
+    private final int quantity;
+    private final String name;
+    private final int waitTime;
+    private final int id;
 
     Suggestion(String type, int boxId, int itemId, int price, int quantity, String name, int waitTime, int id) {
         this.type = type;
@@ -31,7 +35,8 @@ public class Suggestion {
         int itemId = jsonSuggestion.get("item_id").getAsInt();
         int price = jsonSuggestion.get("price").getAsInt();
         int quantity = jsonSuggestion.get("quantity").getAsInt();
-        String name = jsonSuggestion.get("name").getAsString();
+        JsonElement nullableText = jsonSuggestion.get("name");
+        String name = (nullableText instanceof JsonNull) ? "" : nullableText.getAsString();
         int waitTime = jsonSuggestion.get("wait_time").getAsInt();
         int id = jsonSuggestion.get("command_id").getAsInt();
         return new Suggestion(type, boxId, itemId, price, quantity, name, waitTime, id);
@@ -39,7 +44,7 @@ public class Suggestion {
 
     @Override
     public String toString() {
-        return "<html> Suggestion:" +
+        return "<html><b>Flipping AI Suggestion:</b>" +
                 "<br>Type: " + type +
                 "<br>Box ID: " + boxId +
                 "<br>Item ID: " + itemId +
