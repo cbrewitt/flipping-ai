@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -25,13 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 
 @Slf4j
@@ -47,7 +42,7 @@ public class FlippingAiPlugin extends Plugin {
 	private ScheduledExecutorService executorService;
 
 	private RSItem[] inventoryItems;
-	private Offer[] offers;
+	private Offer[] offers = new Offer[8];
 
 	private TradeController tradeController;
 
@@ -110,7 +105,7 @@ public class FlippingAiPlugin extends Plugin {
 
 	@Subscribe
 	public void onGrandExchangeOfferChanged(GrandExchangeOfferChanged event) {
-		updateOffers();
+		updateOffer(event);
 		suggestionNeeded = true;
 	}
 
@@ -124,6 +119,7 @@ public class FlippingAiPlugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick event) {
 		if (suggestionNeeded) {
+			suggestionNeeded = false;
 			getSuggestionAsync();
 		}
 	}
@@ -148,7 +144,6 @@ public class FlippingAiPlugin extends Plugin {
 
 	void getSuggestion() {
 		suggestionLock.lock();
-		suggestionNeeded = false;
 		try {
 			if (offers != null && inventoryItems != null) {
 				log.info("Getting suggestion");
@@ -191,26 +186,67 @@ public class FlippingAiPlugin extends Plugin {
 		return status;
 	}
 
-	void updateOffers() {
+	void updateAllOffers() {
 		GrandExchangeOffer[] runeliteOffers = this.client.getGrandExchangeOffers();
 		offers = new Offer[runeliteOffers.length];
 		for (int i = 0; i < runeliteOffers.length; i++) {
 			GrandExchangeOffer runeliteOffer = runeliteOffers[i];
 			if (runeliteOffer != null) {
-				Offer offer = new Offer();
-				offer.status = extractOfferStatus(runeliteOffer.getState());
-				offer.itemId = runeliteOffer.getItemId();
-				offer.price = runeliteOffer.getPrice();
-				offer.amountTotal = runeliteOffer.getTotalQuantity();
-				offer.amountSpent = runeliteOffer.getSpent();
-				offer.amountTraded = runeliteOffer.getQuantitySold();
-				offer.boxId = i;
-				offer.active = runeliteOffer.getState().equals(GrandExchangeOfferState.BUYING)
-						|| runeliteOffer.getState().equals(GrandExchangeOfferState.SELLING);
-
+				Offer offer = extractOffer(runeliteOffer, i);
 				offers[i] = offer;
 			}
 		}
+	}
+
+	void initialiseOffers() {
+		offers = new Offer[8];
+		for (int i = 0; i < 8; i++) {
+				Offer offer = new Offer();
+				offer.boxId = i;
+				offers[i] = offer;
+		}
+	}
+
+	Offer extractOffer(GrandExchangeOffer runeliteOffer, int boxId) {
+		Offer offer = new Offer();
+		offer.status = extractOfferStatus(runeliteOffer.getState());
+		offer.itemId = runeliteOffer.getItemId();
+		offer.price = runeliteOffer.getPrice();
+		offer.amountTotal = runeliteOffer.getTotalQuantity();
+		offer.amountSpent = runeliteOffer.getSpent();
+		offer.amountTraded = runeliteOffer.getQuantitySold();
+		offer.boxId = boxId;
+		offer.active = runeliteOffer.getState().equals(GrandExchangeOfferState.BUYING)
+				|| runeliteOffer.getState().equals(GrandExchangeOfferState.SELLING);
+		return offer;
+	}
+
+	void updateOffer(GrandExchangeOfferChanged event) {
+		Offer oldOffer = offers[event.getSlot()];
+		GrandExchangeOffer runeliteOffer = event.getOffer();
+		Offer newOffer = extractOffer(runeliteOffer, event.getSlot());
+
+		// add uncollected items and gp
+		if (oldOffer != null) {
+			if (newOffer.status.equals("buy")) {
+				newOffer.itemsToCollect = oldOffer.itemsToCollect +
+						newOffer.amountTraded - oldOffer.amountTraded;
+			} else if (newOffer.status.equals("sell")) {
+				newOffer.gpToCollect = oldOffer.gpToCollect +
+						newOffer.amountSpent - oldOffer.amountSpent;
+			}
+		}
+
+		// add uncollected items and gp from aborted offers
+		if (oldOffer == null || oldOffer.active) {
+			if (runeliteOffer.getState().equals(GrandExchangeOfferState.CANCELLED_BUY)) {
+				newOffer.gpToCollect += (newOffer.amountTotal - newOffer.amountTraded) * newOffer.price;
+			} else if (runeliteOffer.getState().equals(GrandExchangeOfferState.CANCELLED_SELL)) {
+				newOffer.itemsToCollect += newOffer.amountTotal - newOffer.amountTraded;
+			}
+		}
+
+		offers[newOffer.boxId] = newOffer;
 	}
 
 	void updateInventory() {
@@ -233,4 +269,41 @@ public class FlippingAiPlugin extends Plugin {
 			inventoryItems = unnotedItems.toArray(new RSItem[0]);
 		}
 	}
+
+	void onCollectAll() {
+		for (Offer offer: offers) {
+			offer.itemsToCollect = 0;
+			offer.gpToCollect = 0;
+		}
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event) {
+		String menuOption = event.getMenuOption();
+		Widget widget = event.getWidget();
+
+		// collect all button clicked
+		if (widget != null && widget.getId() == 30474246) {
+			if (menuOption.equals("Collect to bank") || menuOption.equals("Collect to inventory")) {
+				onCollectAll();
+			}
+		}
+
+		// collect with slot open
+		if (widget != null && widget.getId() == 30474264 ) {
+			if (menuOption.equals("Collect") || menuOption.equals("Bank")) {
+				int slot = getOpenSlot();
+				if (widget.getItemId() == 995) {
+					offers[slot].gpToCollect = 0;
+				} else {
+					offers[slot].itemsToCollect = 0;
+				}
+			}
+		}
+	}
+
+	int getOpenSlot() {
+		return client.getVarbitValue(4439) - 1;
+	}
+
 }

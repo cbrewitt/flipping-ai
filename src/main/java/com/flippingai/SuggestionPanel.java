@@ -15,8 +15,7 @@ public class SuggestionPanel extends PluginPanel {
 
     void init(FlippingAiConfig config) {
             // Set the text for the JLabel
-            setText("<html> Open the Grand Exchange to get a<br>" +
-                    "flipping suggestion <html>");
+            setText("<html> Log in to get a flip suggestion <html>");
 
             // Add the JLabel to the PluginPanel
             add(suggestionInfo, BorderLayout.CENTER);
@@ -37,7 +36,7 @@ public class SuggestionPanel extends PluginPanel {
                 suggestionString += "Wait for offers to complete... <br>";
                 break;
             case "abort":
-                suggestionString += "Abort offer for<br>" + suggestion.getName();
+                suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "</FONT>";
                 break;
             case "buy":
             case "sell":

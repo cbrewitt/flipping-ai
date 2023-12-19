@@ -1,7 +1,9 @@
 package com.flippingai;
 
 import com.google.gson.JsonObject;
+import lombok.Getter;
 
+@Getter
 public class Offer {
     String status = "empty";
     int itemId = 0;
@@ -9,7 +11,8 @@ public class Offer {
     int amountTotal = 0;
     int amountSpent = 0;
     int amountTraded = 0;
-    int amountCollected = 0;
+    int itemsToCollect = 0;
+    int gpToCollect = 0;
     int boxId = 0;
     boolean active = false;
 

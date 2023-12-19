@@ -11,10 +11,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class TradeController {
@@ -43,11 +42,29 @@ public class TradeController {
         }
 
         // get total amount of each item
-        Map<Integer, Integer> itemsAmount = Arrays.stream(items).filter(i -> i != null)
+        Map<Integer, Integer> itemsAmount = Arrays.stream(items).filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(RSItem::getId,
                         Collectors.summingInt(RSItem::getAmount)));
 
+        // uncollected items
+        Map<Integer, Integer> uncollectedItemsAmount = Arrays.stream(offers).filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(Offer::getItemId,
+                        Collectors.summingInt(Offer::getItemsToCollect)));
+
+        // uncollected GP
+        int totalGpToCollect = Arrays.stream(offers)
+                .filter(Objects::nonNull)
+                .mapToInt(Offer::getGpToCollect)
+                .sum();
+
+        itemsAmount.merge(995, totalGpToCollect, Integer::sum);
+        uncollectedItemsAmount.forEach((key, value) -> itemsAmount.merge(key, value, Integer::sum));
+
+        // remove items with zero quantity
+        itemsAmount.entrySet().removeIf(entry -> entry.getValue() == 0);
+
         // convert items to list of JsonObjects
+
         JsonArray itemsJsonArray = new JsonArray();
         for(Map.Entry<Integer, Integer> entry : itemsAmount.entrySet()) {
             JsonObject itemJson = new JsonObject();
