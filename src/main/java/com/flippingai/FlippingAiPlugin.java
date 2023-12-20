@@ -15,6 +15,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
@@ -62,6 +63,9 @@ public class FlippingAiPlugin extends Plugin {
 	private Timer suggestionTimer;
 
 	private boolean suggestionNeeded = false;
+	private Suggestion currentSuggestion;
+
+	private boolean hasCollected = false;
 
 	// Method to reset and start the timer
 	private void resetSuggestionTimer() {
@@ -96,6 +100,8 @@ public class FlippingAiPlugin extends Plugin {
 
 		clientToolbar.addNavigation(navButton);
 		resetSuggestionTimer();
+
+
 	}
 
 	@Override
@@ -118,7 +124,7 @@ public class FlippingAiPlugin extends Plugin {
 	}
 	@Subscribe
 	public void onGameTick(GameTick event) {
-		if (suggestionNeeded) {
+		if (suggestionNeeded && getOpenSlot() == -1) {
 			suggestionNeeded = false;
 			getSuggestionAsync();
 		}
@@ -150,8 +156,8 @@ public class FlippingAiPlugin extends Plugin {
 				try {
 					JsonObject suggestionJson = tradeController.getSuggestion(offers, inventoryItems, false, false);
 					log.info("Received suggestion: " + suggestionJson.toString());
-					Suggestion suggestion = Suggestion.fromJson(suggestionJson);
-					suggestionPanel.updateSuggestion(suggestion);
+					currentSuggestion = Suggestion.fromJson(suggestionJson);
+					suggestionPanel.updateSuggestion(currentSuggestion);
 				} catch (IOException e) {
 					log.error("Error occurred while getting suggestion: " + e);
 					suggestionPanel.setText("Failed to connect to server");
@@ -185,6 +191,29 @@ public class FlippingAiPlugin extends Plugin {
 		}
 		return status;
 	}
+
+	boolean collectNeeded(Suggestion suggestion) {
+		if (suggestion.getType().equals("buy")) {
+			int gp = 0;
+			for (RSItem item : inventoryItems) {
+				if (item.getId() == 995) {
+					gp += item.getAmount();
+				}
+			}
+			return gp < suggestion.getPrice() * suggestion.getQuantity();
+		} else if (suggestion.getType().equals("sell")) {
+			int amount = 0;
+			for (RSItem item : inventoryItems) {
+				if (item.getId() == suggestion.getItemId()) {
+					amount += item.getAmount();
+				}
+			}
+			return amount < suggestion.getQuantity();
+		}
+		return false;
+	}
+
+
 
 	void updateAllOffers() {
 		GrandExchangeOffer[] runeliteOffers = this.client.getGrandExchangeOffers();
@@ -275,6 +304,7 @@ public class FlippingAiPlugin extends Plugin {
 			offer.itemsToCollect = 0;
 			offer.gpToCollect = 0;
 		}
+		hasCollected = true;
 	}
 
 	@Subscribe
@@ -284,14 +314,14 @@ public class FlippingAiPlugin extends Plugin {
 
 		// collect all button clicked
 		if (widget != null && widget.getId() == 30474246) {
-			if (menuOption.equals("Collect to bank") || menuOption.equals("Collect to inventory")) {
+			if (menuOption.contains("Collect")) {
 				onCollectAll();
 			}
 		}
 
 		// collect with slot open
 		if (widget != null && widget.getId() == 30474264 ) {
-			if (menuOption.equals("Collect") || menuOption.equals("Bank")) {
+			if (menuOption.contains("Collect") || menuOption.contains("Bank")) {
 				int slot = getOpenSlot();
 				if (widget.getItemId() == 995) {
 					offers[slot].gpToCollect = 0;
@@ -306,4 +336,25 @@ public class FlippingAiPlugin extends Plugin {
 		return client.getVarbitValue(4439) - 1;
 	}
 
+	void onWidgetLoaded(WidgetLoaded event) {
+		if (event.getGroupId() == 465) {
+			onGeOpened();
+		}
+	}
+
+	void onWidgetClosed(WidgetClosed event) {
+		if (event.getGroupId() == 465) {
+			onGeClosed();
+		}
+	}
+
+	void onGeOpened() {
+		//updateCollectHighlight();
+	}
+
+	void onGeClosed() {
+		//updateCollectHighlight();
+	}
 }
+
+

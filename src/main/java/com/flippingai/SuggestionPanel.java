@@ -14,10 +14,9 @@ public class SuggestionPanel extends PluginPanel {
     private final JLabel suggestionInfo = new JLabel();
 
     void init(FlippingAiConfig config) {
-            // Set the text for the JLabel
             setText("<html> Log in to get a flip suggestion <html>");
 
-            // Add the JLabel to the PluginPanel
+            suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
             add(suggestionInfo, BorderLayout.CENTER);
 
     }
@@ -28,7 +27,7 @@ public class SuggestionPanel extends PluginPanel {
 
     void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
-        String suggestionString = "<html> <FONT COLOR=white><b>Flipping AI Suggestion:" +
+        String suggestionString = "<html><center> <FONT COLOR=white><b>AI Suggestion:" +
                 "</b></FONT><br><br>";
 
         switch (suggestion.getType()) {
@@ -43,12 +42,12 @@ public class SuggestionPanel extends PluginPanel {
                 suggestionString += suggestion.getType() +
                         " <FONT COLOR=yellow>" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                         "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                        "for <FONT COLOR=yellow>" + formatter.format(suggestion.getPrice()) + "</FONT> coins each.<br>";
+                        "for <FONT COLOR=yellow>" + formatter.format(suggestion.getPrice()) + "</FONT> coins each<br>";
                 break;
             default:
                 suggestionString += "Error processing suggestion.<br>";
         }
-        suggestionString += "<html>";
+        suggestionString += "</center><html>";
         setText(suggestionString);
     }
 
