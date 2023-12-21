@@ -144,6 +144,7 @@ public class FlippingAiPlugin extends Plugin {
 	}
 
 	void getSuggestion() {
+		suggestionPanel.showSpinner();
 		try {
 			if (offers != null && inventoryItems != null) {
 				log.info("Getting suggestion");
@@ -163,6 +164,9 @@ public class FlippingAiPlugin extends Plugin {
 			}
 		} finally {
 			resetSuggestionTimer();
+			if (!suggestionNeeded) {
+				suggestionPanel.hideSpinner();
+			}
 		}
 	}
 

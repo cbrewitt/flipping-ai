@@ -2,6 +2,7 @@ package com.flippingai;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.IconTextField;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,13 +13,43 @@ import java.text.NumberFormat;
 public class SuggestionPanel extends PluginPanel {
 
     private final JLabel suggestionInfo = new JLabel();
+    private final JLabel spinnerWrapper = new JLabel();
+
 
     void init(FlippingAiConfig config) {
-            setText("<html> <center> <FONT COLOR=white><b>AI Suggestion" +
-                    "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
-            suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
-            add(suggestionInfo, BorderLayout.CENTER);
+        setText("<html> <center> <FONT COLOR=white><b>AI Suggestion" +
+                "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
+        suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
+        add(suggestionInfo, BorderLayout.CENTER);
+        add(spinnerWrapper, BorderLayout.CENTER);
 
+        setLayout(new GridLayout(2, 1));
+
+        setIcon(IconTextField.Icon.LOADING);
+        spinnerWrapper.setPreferredSize(new Dimension(30, 0));
+        spinnerWrapper.setVerticalAlignment(JLabel.CENTER);
+        spinnerWrapper.setHorizontalAlignment(JLabel.CENTER);
+        hideSpinner();
+
+
+        add(spinnerWrapper);
+        add(suggestionInfo);
+
+
+
+    }
+
+    void showSpinner() {
+        spinnerWrapper.setVisible(true);
+    }
+
+    void hideSpinner() {
+        spinnerWrapper.setVisible(false);
+    }
+
+    void setIcon(IconTextField.Icon icon) {
+        final ImageIcon imageIcon = new ImageIcon(new IconTextField().getClass().getResource(icon.getFile()));
+        spinnerWrapper.setIcon(imageIcon);
     }
 
     void setText(String text) {
