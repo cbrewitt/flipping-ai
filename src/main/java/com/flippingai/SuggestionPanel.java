@@ -32,7 +32,7 @@ public class SuggestionPanel extends PluginPanel {
 
         switch (suggestion.getType()) {
             case "wait":
-                suggestionString += "Wait for offers to complete... <br>";
+                suggestionString += "Wait for offers to complete <br>";
                 break;
             case "abort":
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "</FONT>";
