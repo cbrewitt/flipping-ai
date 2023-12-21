@@ -15,7 +15,6 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
-import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
@@ -26,8 +25,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 
 @Slf4j
@@ -59,13 +56,11 @@ public class FlippingAiPlugin extends Plugin {
 	@Inject
 	private ClientToolbar clientToolbar;
 
-	private final Lock suggestionLock = new ReentrantLock();
 	private Timer suggestionTimer;
 
 	private boolean suggestionNeeded = false;
 	private Suggestion currentSuggestion;
 
-	private boolean hasCollected = false;
 
 	// Method to reset and start the timer
 	private void resetSuggestionTimer() {
@@ -149,7 +144,6 @@ public class FlippingAiPlugin extends Plugin {
 	}
 
 	void getSuggestion() {
-		suggestionLock.lock();
 		try {
 			if (offers != null && inventoryItems != null) {
 				log.info("Getting suggestion");
@@ -157,14 +151,17 @@ public class FlippingAiPlugin extends Plugin {
 					JsonObject suggestionJson = tradeController.getSuggestion(offers, inventoryItems, false, false);
 					log.info("Received suggestion: " + suggestionJson.toString());
 					currentSuggestion = Suggestion.fromJson(suggestionJson);
-					suggestionPanel.updateSuggestion(currentSuggestion);
+					if (collectNeeded(currentSuggestion)) {
+						suggestionPanel.suggestCollect();
+					} else {
+						suggestionPanel.updateSuggestion(currentSuggestion);
+					}
 				} catch (IOException e) {
 					log.error("Error occurred while getting suggestion: " + e);
 					suggestionPanel.setText("Failed to connect to server");
 				}
 			}
 		} finally {
-			suggestionLock.unlock();
 			resetSuggestionTimer();
 		}
 	}
@@ -193,6 +190,10 @@ public class FlippingAiPlugin extends Plugin {
 	}
 
 	boolean collectNeeded(Suggestion suggestion) {
+		if ((suggestion.getType().equals("buy") || suggestion.getType().equals("sell"))
+				&& !offers[suggestion.getBoxId()].status.equals("empty")) {
+			return true;
+		}
 		if (suggestion.getType().equals("buy")) {
 			int gp = 0;
 			for (RSItem item : inventoryItems) {
@@ -299,27 +300,25 @@ public class FlippingAiPlugin extends Plugin {
 		}
 	}
 
-	void onCollectAll() {
-		for (Offer offer: offers) {
-			offer.itemsToCollect = 0;
-			offer.gpToCollect = 0;
-		}
-		hasCollected = true;
-	}
-
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked event) {
+	void handleCollectAll(MenuOptionClicked event) {
 		String menuOption = event.getMenuOption();
 		Widget widget = event.getWidget();
 
-		// collect all button clicked
 		if (widget != null && widget.getId() == 30474246) {
 			if (menuOption.contains("Collect")) {
-				onCollectAll();
+				for (Offer offer: offers) {
+					offer.itemsToCollect = 0;
+					offer.gpToCollect = 0;
+				}
+				suggestionPanel.updateSuggestion(currentSuggestion);
 			}
 		}
+	}
 
-		// collect with slot open
+	void handleCollectWithSlotOpen(MenuOptionClicked event) {
+		String menuOption = event.getMenuOption();
+		Widget widget = event.getWidget();
+
 		if (widget != null && widget.getId() == 30474264 ) {
 			if (menuOption.contains("Collect") || menuOption.contains("Bank")) {
 				int slot = getOpenSlot();
@@ -328,33 +327,23 @@ public class FlippingAiPlugin extends Plugin {
 				} else {
 					offers[slot].itemsToCollect = 0;
 				}
+				if (!collectNeeded(currentSuggestion)) {
+					suggestionPanel.updateSuggestion(currentSuggestion);
+				}
 			}
 		}
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event) {
+		handleCollectAll(event);
+		handleCollectWithSlotOpen(event);
 	}
 
 	int getOpenSlot() {
 		return client.getVarbitValue(4439) - 1;
 	}
 
-	void onWidgetLoaded(WidgetLoaded event) {
-		if (event.getGroupId() == 465) {
-			onGeOpened();
-		}
-	}
-
-	void onWidgetClosed(WidgetClosed event) {
-		if (event.getGroupId() == 465) {
-			onGeClosed();
-		}
-	}
-
-	void onGeOpened() {
-		//updateCollectHighlight();
-	}
-
-	void onGeClosed() {
-		//updateCollectHighlight();
-	}
 }
 
 

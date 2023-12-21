@@ -14,8 +14,8 @@ public class SuggestionPanel extends PluginPanel {
     private final JLabel suggestionInfo = new JLabel();
 
     void init(FlippingAiConfig config) {
-            setText("<html> Log in to get a flip suggestion <html>");
-
+            setText("<html> <center> <FONT COLOR=white><b>AI Suggestion" +
+                    "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
             suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
             add(suggestionInfo, BorderLayout.CENTER);
 
@@ -27,7 +27,7 @@ public class SuggestionPanel extends PluginPanel {
 
     void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
-        String suggestionString = "<html><center> <FONT COLOR=white><b>AI Suggestion:" +
+        String suggestionString = "<html><center> <FONT COLOR=white><b>AI Suggestion" +
                 "</b></FONT><br><br>";
 
         switch (suggestion.getType()) {
@@ -39,7 +39,8 @@ public class SuggestionPanel extends PluginPanel {
                 break;
             case "buy":
             case "sell":
-                suggestionString += suggestion.getType() +
+                String capitalisedAction = suggestion.getType().equals("buy") ? "Buy" : "Sell";
+                suggestionString += capitalisedAction +
                         " <FONT COLOR=yellow>" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                         "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                         "for <FONT COLOR=yellow>" + formatter.format(suggestion.getPrice()) + "</FONT> coins each<br>";
@@ -48,6 +49,12 @@ public class SuggestionPanel extends PluginPanel {
                 suggestionString += "Error processing suggestion.<br>";
         }
         suggestionString += "</center><html>";
+        setText(suggestionString);
+    }
+
+    void suggestCollect() {
+        String suggestionString = "<html><center> <FONT COLOR=white><b>AI Suggestion" +
+                "</b></FONT><br><br>Collect items<br>";
         setText(suggestionString);
     }
 

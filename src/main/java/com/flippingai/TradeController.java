@@ -14,12 +14,16 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class TradeController {
 
     String url;
     int accountId;
+
+    private final Lock suggestionLock = new ReentrantLock();
 
     public TradeController(String url, int accountId) {
         this.url = url;
@@ -87,7 +91,9 @@ public class TradeController {
 
     public JsonObject getSuggestion(Offer[] offers, RSItem[] items, boolean previousSuccessful, boolean sendPreviousSuccessful) throws IOException {
         JsonObject status = statusJson(offers, items, previousSuccessful, sendPreviousSuccessful);
+        suggestionLock.lock();
         JsonObject command = postJson(status, "/command", true);
+        suggestionLock.unlock();
         return command;
     }
 
