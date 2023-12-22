@@ -18,8 +18,7 @@ public class SuggestionPanel extends PluginPanel {
 
 
     void init(FlippingAiConfig config) {
-        setText("<html> <center> <FONT COLOR=white><b>AI Suggestion" +
-                "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
+        suggestLogin();
         suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
         setIcon(IconTextField.Icon.LOADING);
         setLayout(new GridBagLayout());
@@ -96,9 +95,12 @@ public class SuggestionPanel extends PluginPanel {
     }
 
     void suggestCollect() {
-        String suggestionString = "<html><center> <FONT COLOR=white><b>AI Suggestion" +
-                "</b></FONT><br><br>Collect items<br>";
-        setText(suggestionString);
+        setText("<html><center> <FONT COLOR=white><b>AI Suggestion" +
+                "</b></FONT><br><br>Collect items<br>");
     }
 
+    void suggestLogin() {
+        setText("<html><center> <FONT COLOR=white><b>AI Suggestion" +
+                "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
+    }
 }

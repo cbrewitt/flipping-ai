@@ -3,6 +3,7 @@ package com.flippingai;
 import com.google.gson.JsonObject;
 import com.google.inject.Provides;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
@@ -32,34 +33,33 @@ import java.util.concurrent.ScheduledExecutorService;
 public class FlippingAiPlugin extends Plugin {
 	@Inject
 	private Client client;
-
 	@Inject
 	private FlippingAiConfig config;
-
 	@Inject
 	private ScheduledExecutorService executorService;
-
 	private RSItem[] inventoryItems;
 	private Offer[] offers = new Offer[8];
-
 	private TradeController tradeController;
-
 	private boolean geOpen = false;
-
 	private SuggestionPanel suggestionPanel;
 	private NavigationButton navButton;
-
 	@Inject
 	@Getter
 	private ClientThread clientThread;
-
 	@Inject
 	private ClientToolbar clientToolbar;
-
 	private Timer suggestionTimer;
-
 	private boolean suggestionNeeded = false;
 	private Suggestion currentSuggestion;
+
+	//this flag is to know that when we see the login screen an account has actually logged out and its not just that the
+	//client has started.
+	private boolean previouslyLoggedIn;
+	//the display name of the currently logged in user. This is the only account that can actually receive offers
+	//as this is the only account currently logged in.
+	@Getter
+	@Setter
+	private String currentlyLoggedInAccount;
 
 
 	// Method to reset and start the timer
@@ -79,7 +79,7 @@ public class FlippingAiPlugin extends Plugin {
 	@Override
 	protected void startUp() throws Exception {
 		log.info("Flipping AI started!");
-		tradeController = new TradeController("http://142.4.217.224:5000/trader", 2);
+		tradeController = new TradeController("http://142.4.217.224:5000/trader");
 
 		suggestionPanel = injector.getInstance(SuggestionPanel.class);
 		suggestionPanel.init(config);
@@ -146,9 +146,13 @@ public class FlippingAiPlugin extends Plugin {
 	void getSuggestion() {
 		suggestionPanel.showSpinner();
 		try {
-			if (offers != null && inventoryItems != null) {
+			if (offers != null && inventoryItems != null && currentlyLoggedInAccount != null) {
 				log.info("Getting suggestion");
 				try {
+					if(tradeController.accountId == -1) {
+						tradeController.getAccountId(currentlyLoggedInAccount);;
+					}
+
 					JsonObject suggestionJson = tradeController.getSuggestion(offers, inventoryItems, false, false);
 					log.info("Received suggestion: " + suggestionJson.toString());
 					currentSuggestion = Suggestion.fromJson(suggestionJson);
@@ -346,6 +350,75 @@ public class FlippingAiPlugin extends Plugin {
 
 	int getOpenSlot() {
 		return client.getVarbitValue(4439) - 1;
+	}
+
+	// Borrowed from FlippingUtilities
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event) {
+		if (event.getGameState() == GameState.LOGGED_IN) {
+			onLoggedInGameState();
+		} else if (event.getGameState() == GameState.LOGIN_SCREEN && previouslyLoggedIn) {
+			//this randomly fired at night hours after i had logged off...so i'm adding this guard here.
+			if (currentlyLoggedInAccount != null && client.getGameState() != GameState.LOGGED_IN) {
+				handleLogout();
+			}
+		}
+	}
+
+	// Borrowed from FlippingUtilities
+	private void onLoggedInGameState() {
+		//keep scheduling this task until it returns true (when we have access to a display name)
+		clientThread.invokeLater(() ->
+		{
+			//we return true in this case as something went wrong and somehow the state isn't logged in, so we don't
+			//want to keep scheduling this task.
+			if (client.getGameState() != GameState.LOGGED_IN) {
+				return true;
+			}
+
+			final Player player = client.getLocalPlayer();
+
+			//player is null, so we can't get the display name so, return false, which will schedule
+			//the task on the client thread again.
+			if (player == null) {
+				return false;
+			}
+
+			final String name = player.getName();
+
+			if (name == null) {
+				return false;
+			}
+
+			if (name.equals("")) {
+				return false;
+			}
+			previouslyLoggedIn = true;
+
+			if (currentlyLoggedInAccount == null) {
+				handleLogin(name);
+			}
+			//stops scheduling this task
+			return true;
+		});
+	}
+
+	// Borrowed from FlippingUtilities
+	public void handleLogin(String displayName) {
+		if (client.getAccountType().isIronman()) {
+			log.info("account is an ironman");
+			return;
+		}
+		currentlyLoggedInAccount = displayName;
+	}
+
+
+	// Borrowed from FlippingUtilities
+	public void handleLogout() {
+		log.info("{} is logging out", currentlyLoggedInAccount);
+		currentlyLoggedInAccount = null;
+		tradeController.resetAccountId();
+		suggestionPanel.suggestLogin();
 	}
 
 }

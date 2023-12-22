@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import lombok.Setter;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,13 +22,16 @@ import java.util.stream.Collectors;
 public class TradeController {
 
     String url;
-    int accountId;
+    int accountId = -1;
 
     private final Lock suggestionLock = new ReentrantLock();
 
-    public TradeController(String url, int accountId) {
+    public TradeController(String url) {
         this.url = url;
-        this.accountId = accountId;
+    }
+
+    public void resetAccountId() {
+        this.accountId = -1;
     }
 
     public void postRestricted(int itemId, int accountId) throws IOException {
@@ -97,6 +101,19 @@ public class TradeController {
         return command;
     }
 
+    public void getAccountId(String displayName) throws IOException {
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("display_name", displayName);
+
+        JsonObject responseJson = postJson(requestJson, "/account-id", true);
+
+        if (responseJson.has("account_id")) {
+            accountId = responseJson.get("account_id").getAsInt();
+        } else {
+            throw new IOException("Account ID not found in the response");
+        }
+    }
+
     private JsonObject postJson(JsonElement json, String route, boolean jsonResponse) throws IOException {
         URL uri = new URL(url + route);
         HttpURLConnection con = (HttpURLConnection)uri.openConnection();
@@ -126,10 +143,10 @@ public class TradeController {
                 br.close();
                 return JsonParser.parseString(sb.toString()).getAsJsonObject();
             } else {
-                return null;
+                return new JsonObject(); // return an empty JSON object instead of null
             }
         } else {
-            throw new IOException();
+            throw new IOException("Server returned HTTP response code: " + HttpResult + " for URL: " + uri);
         }
     }
 }
