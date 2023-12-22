@@ -14,37 +14,49 @@ public class SuggestionPanel extends PluginPanel {
 
     private final JLabel suggestionInfo = new JLabel();
     private final JLabel spinnerWrapper = new JLabel();
+    private final JPanel spinnerPlaceholder = new JPanel();
 
 
     void init(FlippingAiConfig config) {
         setText("<html> <center> <FONT COLOR=white><b>AI Suggestion" +
                 "</b></FONT><br><br> Log in to get a flip suggestion <br></center><html>");
         suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
-        add(suggestionInfo, BorderLayout.CENTER);
-        add(spinnerWrapper, BorderLayout.CENTER);
+        setIcon(IconTextField.Icon.LOADING);
+        setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
 
-        setLayout(new GridLayout(2, 1));
+        // Configure the placeholder panel
+        spinnerPlaceholder.setPreferredSize(new Dimension(30, 30)); // Same size as spinner
+        spinnerPlaceholder.setOpaque(false); // Make it invisible
+        add(spinnerPlaceholder, gbc);
+
+        // Configure constraints for spinnerWrapper
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        spinnerWrapper.setPreferredSize(new Dimension(30, 30)); // Adjust as needed
+        add(spinnerWrapper, gbc);
+
+        // Configure constraints for suggestionInfo
+        gbc.gridy = 1; // Place it below the spinner
+        suggestionInfo.setHorizontalAlignment(SwingConstants.CENTER);
+        add(suggestionInfo, gbc);
 
         setIcon(IconTextField.Icon.LOADING);
-        spinnerWrapper.setPreferredSize(new Dimension(30, 0));
-        spinnerWrapper.setVerticalAlignment(JLabel.CENTER);
-        spinnerWrapper.setHorizontalAlignment(JLabel.CENTER);
         hideSpinner();
-
-
-        add(spinnerWrapper);
-        add(suggestionInfo);
-
-
 
     }
 
     void showSpinner() {
         spinnerWrapper.setVisible(true);
+        spinnerPlaceholder.setVisible(false);
     }
 
     void hideSpinner() {
         spinnerWrapper.setVisible(false);
+        spinnerPlaceholder.setVisible(true);
     }
 
     void setIcon(IconTextField.Icon icon) {
