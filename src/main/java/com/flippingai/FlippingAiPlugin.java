@@ -150,7 +150,7 @@ public class FlippingAiPlugin extends Plugin {
 				log.info("Getting suggestion");
 				try {
 					if(tradeController.accountId == -1) {
-						tradeController.getAccountId(currentlyLoggedInAccount);;
+						tradeController.getAccountId(currentlyLoggedInAccount);
 					}
 
 					JsonObject suggestionJson = tradeController.getSuggestion(offers, inventoryItems, false, false);
