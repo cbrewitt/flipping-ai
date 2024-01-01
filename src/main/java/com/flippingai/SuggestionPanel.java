@@ -30,13 +30,16 @@ public class SuggestionPanel extends PluginPanel {
         add(spinnerPlaceholder, gbc);
 
         // Configure constraints for spinnerWrapper
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1;
-        gbc.weighty = 1;
+        gbc.gridx = GridBagConstraints.RELATIVE; // Center horizontally
+        gbc.gridy = GridBagConstraints.RELATIVE; // Center vertically
+        gbc.anchor = GridBagConstraints.CENTER;  // Anchor it to the center
+        gbc.fill = GridBagConstraints.NONE;      // No resizing in any direction
+        gbc.weightx = 1.0;                      // Give extra space horizontally
+        gbc.weighty = 1.0;                      // Give extra space vertically
         spinnerWrapper.setPreferredSize(new Dimension(30, 30)); // Adjust as needed
         add(spinnerWrapper, gbc);
+
+
 
         // Configure constraints for suggestionInfo
         gbc.gridy = 1; // Place it below the spinner
